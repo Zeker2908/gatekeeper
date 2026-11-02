@@ -9,7 +9,7 @@ ARG BIN_NAME
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev cmake \
+    && apt-get install -y --no-install-recommends cmake \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock ./
@@ -22,21 +22,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/release/${BIN_NAME} /app/gatekeeper
 
 # ---------- рантайм ----------
-FROM debian:bookworm-slim AS runtime
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libssl3 curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin gatekeeper
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 
 COPY --from=builder /app/gatekeeper /usr/local/bin/gatekeeper
 
-USER 10001
 ENV BIND_ADDR=0.0.0.0:8080 \
     RUST_LOG=info
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8080/health/live || exit 1
-
-ENTRYPOINT ["gatekeeper"]
+ENTRYPOINT ["/usr/local/bin/gatekeeper"]
