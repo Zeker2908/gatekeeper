@@ -3,6 +3,7 @@ use thiserror::Error;
 
 pub struct Config {
     pub bind_addr: String,
+    pub healthcheck_url: String,
     pub jwks_url: String,
     pub rules_url: String,
     pub upstream_url: String,
@@ -107,6 +108,7 @@ impl Config {
     pub fn from_env() -> Result<Config, ConfigError> {
         Ok(Config {
             bind_addr: env_or("BIND_ADDR", "0.0.0.0:8080".into())?,
+            healthcheck_url: env_or("HEALTHCHECK_URL", "http://127.0.0.1:8080".into())?,
             jwks_url: required("JWKS_URL")?,
             rules_url: required("RULES_URL")?,
             upstream_url: required("UPSTREAM_URL")?,

@@ -120,6 +120,7 @@ mod tests {
         AppState {
             config: Arc::new(Config {
                 bind_addr: "127.0.0.1:0".into(),
+                healthcheck_url: "http://127.0.0.1:8080".into(),
                 jwks_url: "http://localhost/jwks".into(),
                 rules_url: "http://localhost/rules".into(),
                 upstream_url: "http://localhost".into(),

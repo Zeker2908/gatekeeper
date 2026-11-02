@@ -50,7 +50,17 @@ async fn main() {
         eprintln!("{e}");
         std::process::exit(1);
     }));
+
     let http = HttpClient::new().expect("cannot create HTTP client");
+
+    if std::env::args().nth(1).as_deref() == Some("healthcheck") {
+        if let Err(e) = healthcheck(&config.healthcheck_url, http.clone()).await {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let rules_source = HttpRulesSource::new(http.clone(), config.rules_url.clone());
     let jwks_source = HttpJwksSource::new(
         http.clone(),
@@ -189,4 +199,18 @@ async fn ready(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
         );
     }
     (StatusCode::OK, Json(json!({"status": "UP"})))
+}
+
+async fn healthcheck(host: &str, client: HttpClient) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .inner()
+        .get(format!("{host}/health/ready"))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("application is not ready: {}", response.status()).into());
+    }
+
+    Ok(())
 }
