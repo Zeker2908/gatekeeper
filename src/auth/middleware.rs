@@ -130,6 +130,7 @@ mod tests {
                 jwks_refresh_secs: 300,
                 jwt_algorithms: vec![Algorithm::HS256],
                 max_body_bytes: 1024,
+                trusted_proxies: Vec::new(),
             }),
             rules: Arc::new(rules_cache),
             jwks: Arc::new(jwks_cache),

@@ -1,3 +1,4 @@
+use crate::cidr::Cidr;
 use jsonwebtoken::Algorithm;
 use thiserror::Error;
 
@@ -13,6 +14,7 @@ pub struct Config {
     pub jwks_refresh_secs: u64,
     pub jwt_algorithms: Vec<Algorithm>,
     pub max_body_bytes: usize,
+    pub trusted_proxies: Vec<Cidr>,
 }
 
 #[derive(Debug, Error)]
@@ -93,6 +95,19 @@ fn mb_to_bytes(mb: u64) -> Result<usize, ConfigError> {
         })
 }
 
+fn parse_trusted_proxies(raw: &str) -> Result<Vec<Cidr>, ConfigError> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            Cidr::parse(value).map_err(|reason| ConfigError::Invalid {
+                name: "TRUSTED_PROXIES",
+                reason: format!("{value:?}: {reason}"),
+            })
+        })
+        .collect()
+}
+
 fn positive(name: &'static str, v: u64) -> Result<u64, ConfigError> {
     if v == 0 {
         Err(ConfigError::Invalid {
@@ -120,6 +135,35 @@ impl Config {
                 &std::env::var("JWT_ALGORITHMS").unwrap_or_else(|_| "RS256".to_string()),
             )?,
             max_body_bytes: mb_to_bytes(env_or("MAX_BODY_MB", 10u64)?)?,
+            trusted_proxies: parse_trusted_proxies(
+                &std::env::var("TRUSTED_PROXIES").unwrap_or_default(),
+            )?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_empty_trusted_proxies() {
+        assert!(parse_trusted_proxies("").unwrap().is_empty());
+        assert!(parse_trusted_proxies(" , ").unwrap().is_empty());
+    }
+
+    #[test]
+    fn parses_comma_separated_trusted_proxies() {
+        let proxies = parse_trusted_proxies(" 10.0.0.0/8, 192.168.1.1 ,2001:db8::/32 ").unwrap();
+
+        assert_eq!(proxies.len(), 3);
+    }
+
+    #[test]
+    fn rejects_invalid_trusted_proxy() {
+        let error = parse_trusted_proxies("10.0.0.0/8, nope").unwrap_err();
+
+        assert!(error.to_string().contains("TRUSTED_PROXIES"));
+        assert!(error.to_string().contains("nope"));
     }
 }

@@ -1,4 +1,5 @@
 mod auth;
+mod cidr;
 mod config;
 mod http_client;
 mod proxy;
@@ -23,6 +24,7 @@ use axum::routing::get;
 use axum::{Json, Router, serve};
 use http::{HeaderName, StatusCode};
 use serde_json::{Value, json};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tower::ServiceBuilder;
@@ -116,10 +118,13 @@ async fn main() {
     let addr = listener.local_addr().unwrap();
     info!(%addr, "Server started");
 
-    serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
+    serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .unwrap();
 }
 
 fn build_app(state: AppState) -> Router {
